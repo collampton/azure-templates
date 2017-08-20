@@ -1,0 +1,185 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "adminUsername": {
+        "type": "string",
+        "defaultValue": "demouser",
+        "metadata": {
+          "description": "Username for the Virtual Machine."
+        }
+      },
+      "adminPassword": {
+        "type": "securestring",
+        "defaultValue": "demo@pass123",
+        "metadata": {
+          "description": "Password for the Virtual Machine."
+        }
+      },
+      "dnsLabelPrefix": {
+        "type": "string",
+        "metadata": {
+          "description": "Unique DNS Name for the Public IP used to access the Virtual Machine."
+        }
+      },
+      "windowsOSVersion": {
+        "type": "string",
+        "defaultValue": "2016-Datacenter",
+        "metadata": {
+          "description": "The Windows version for the VM."
+        }
+      }
+    },
+    "variables": {
+      "nicName": "VirtHost-VMNic1",
+      "addressPrefix": "10.0.0.0/16",
+      "subnetName": "Subnet1",
+      "subnetPrefix": "10.0.0.0/24",
+      "publicIPAddressName": "VirtHostPIP",
+      "vmName": "VirtHost1",
+      "virtualNetworkName": "VNET1",
+      "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('subnetName'))]"
+    },
+    "resources": [
+        {
+            "apiVersion": "2017-03-01",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "name": "NetworkSecurityGroup1",
+            "location": "[resourceGroup().location]",
+            "properties": {
+              "securityRules": [
+                {
+                  "name": "rdprule",
+                  "properties": {
+                    "description": "This rule allows traffic on port 3389 from the web",
+                    "protocol": "Tcp",
+                    "sourcePortRange": "*",
+                    "destinationPortRange": "3389",
+                    "sourceAddressPrefix": "INTERNET",
+                    "destinationAddressPrefix": "10.0.0.0/24",
+                    "access": "Allow",
+                    "priority": 200,
+                    "direction": "Inbound"
+                  }
+                }
+              ]
+            }
+          }, 
+    {
+        "apiVersion": "2017-03-01",
+        "type": "Microsoft.Network/publicIPAddresses",
+        "name": "[variables('publicIPAddressName')]",
+        "location": "[resourceGroup().location]",
+        "properties": {
+          "publicIPAllocationMethod": "Dynamic",
+          "dnsSettings": {
+            "domainNameLabel": "[parameters('dnsLabelPrefix')]"
+          }
+        }
+      },
+      {
+        "apiVersion": "2017-03-01",
+        "type": "Microsoft.Network/virtualNetworks",
+        "name": "[variables('virtualNetworkName')]",
+        "location": "[resourceGroup().location]",
+        "dependsOn": [
+            "[resourceId('Microsoft.Network/networkSecurityGroups', 'NetworkSecurityGroup1')]"
+        ],
+        "properties": {
+          "addressSpace": {
+            "addressPrefixes": [
+              "[variables('addressPrefix')]"
+            ]
+          },
+          "subnets": [
+            {
+              "name": "[variables('subnetName')]",
+              "properties": {
+                "addressPrefix": "[variables('subnetPrefix')]"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "apiVersion": "2017-03-01",
+        "type": "Microsoft.Network/networkInterfaces",
+        "name": "[variables('nicName')]",
+        "location": "[resourceGroup().location]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]",
+          "[resourceId('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]"
+        ],
+        "properties": {
+          "ipConfigurations": [
+            {
+              "name": "ipconfig1",
+              "properties": {
+                "privateIPAllocationMethod": "Dynamic",
+                "publicIPAddress": {
+                  "id": "[resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName'))]"
+                },
+                "subnet": {
+                  "id": "[variables('subnetRef')]"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "apiVersion": "2017-03-30",
+        "type": "Microsoft.Compute/virtualMachines",
+        "name": "[variables('vmName')]",
+        "location": "[resourceGroup().location]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
+        ],
+        "properties": {
+          "hardwareProfile": {
+            "vmSize": "Standard_D2s_v3"
+          },
+          "osProfile": {
+            "computerName": "[variables('vmName')]",
+            "adminUsername": "[parameters('adminUsername')]",
+            "adminPassword": "[parameters('adminPassword')]"
+          },
+          "storageProfile": {
+            "imageReference": {
+              "publisher": "MicrosoftWindowsServer",
+              "offer": "WindowsServer",
+              "sku": "[parameters('windowsOSVersion')]",
+              "version": "latest"
+            },
+            "osDisk": {
+              "name": "VirtHost1-OSDisk",
+              "managedDisk": {
+                "storageAccountType": "Premium_LRS"
+              },
+              "caching": "ReadWrite",
+              "createOption": "FromImage"
+            },
+            "dataDisks": [
+              {
+                "managedDisk": {
+                    "storageAccountType": "Premium_LRS"
+                  },
+                "caching": "ReadWrite",
+                "diskSizeGB": 200,
+                "lun": 0,
+                "createOption": "Empty"
+              }
+            ]
+          },
+          "networkProfile": {
+            "networkInterfaces": [
+              {
+                "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('nicName'))]"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "outputs": {}
+  }
