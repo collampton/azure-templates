@@ -31,14 +31,17 @@
       }
     },
     "variables": {
-      "nicName": "VirtHost-VMNic1",
-      "addressPrefix": "10.0.0.0/16",
-      "subnetName": "Subnet1",
-      "subnetPrefix": "10.0.0.0/24",
-      "publicIPAddressName": "VirtHostPIP",
-      "vmName": "VirtHost1",
-      "virtualNetworkName": "VNET1",
-      "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('subnetName'))]"
+        "customScriptFolder": "./",
+        "customScriptUriScriptFileName": "configure-win-vm-image.ps1",
+        "customScriptUri": "https://raw.githubusercontent.com/opsgility/lab-support-public/master/script-extensions/configure-win-vm-image.ps1",
+        "nicName": "VirtHost-VMNic1",
+        "addressPrefix": "10.0.0.0/16",
+        "subnetName": "Subnet1",
+        "subnetPrefix": "10.0.0.0/24",
+        "publicIPAddressName": "VirtHostPIP",
+        "vmName": "VirtHost1",
+        "virtualNetworkName": "VNET1",
+        "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('subnetName'))]"
     },
     "resources": [
         {
@@ -178,8 +181,34 @@
               }
             ]
           }
+        },
+        "resources": [
+            {
+              "name": "CustomSciptExtension",
+              "type": "extensions",
+              "location": "[resourceGroup().location]",
+              "apiVersion": "2017-03-30",
+              "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', variables('vmName'))]"
+              ],
+              "tags": {
+                "displayName": "DisableIEESC"
+              },
+              "properties": {
+                "publisher": "Microsoft.Compute",
+                "type": "CustomScriptExtension",
+                "typeHandlerVersion": "1.4",
+                "autoUpgradeMinorVersion": false,
+                "settings": {
+                  "fileUris": [
+                    "[variables('customScriptUri')]"
+                  ],
+                  "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File ', variables('customScriptFolder'), '/', variables('customScriptUriScriptFileName'))]"
+                }
+              }
+            }
+          ]
         }
-      }
     ],
     "outputs": {}
   }
