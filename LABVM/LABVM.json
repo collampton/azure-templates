@@ -132,8 +132,7 @@
               "name": "osdisk",
               "createOption": "FromImage",
               "managedDisk": {
-                  "storageAccountType": "Premium_LRS",
-              "caching": "ReadWrite"
+                  "storageAccountType": "Premium_LRS"
               }
             }
           },
